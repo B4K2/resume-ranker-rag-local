@@ -33,13 +33,11 @@ class LLMRanker:
         """
         candidates_data = {}
         
-        # 1. Group chunks by filename
         for item in retrieved_chunks:
             fname = item['chunk']['filename']
             if fname not in candidates_data: candidates_data[fname] = []
             candidates_data[fname].append(item['chunk']['content'])
 
-        # 2. Prepare Tasks for Extraction
         extraction_tasks = []
         filenames = []
         
@@ -52,17 +50,14 @@ class LLMRanker:
             combined_context = f"--- HEADER ---\n{header_context}\n\n--- EXPERIENCE ---\n{rag_context}"
             
             filenames.append(filename)
-            # We wrap the sync function in asyncio.to_thread to allow concurrent execution flow
             extraction_tasks.append(
                 asyncio.to_thread(self._analyze_single_candidate, job_description, combined_context)
             )
 
         app_logger.info(f"Stage 1: Extracting data for {len(filenames)} candidates...")
         
-        # 3. Execute Extraction in Parallel (Logic parallel, GPU is still serial but queued)
         extracted_results = await asyncio.gather(*extraction_tasks)
         
-        # 4. Create Intermediate Result Objects
         candidates = []
         for fname, analysis in zip(filenames, extracted_results):
             candidates.append(CandidateResult(
@@ -74,13 +69,10 @@ class LLMRanker:
                 relevant_experience=analysis.get("experience", [])
             ))
 
-        # 5. Stage 2: The Tournament (Judge)
-        # We send a summary of ALL candidates to the LLM to get a comparative ranking.
         if len(candidates) > 1:
             app_logger.info("Stage 2: Running Comparative Judging...")
             candidates = await asyncio.to_thread(self._judge_tournament, job_description, candidates)
         
-        # Final Sort
         candidates.sort(key=lambda x: x.score, reverse=True)
         for i, res in enumerate(candidates): res.rank = i + 1
             
@@ -91,8 +83,6 @@ class LLMRanker:
         Takes all extracted profiles and asks the LLM to re-score them
         relative to each other using a structured chat prompt.
         """
-
-        # Build roster text
         roster_lines = []
         for i, c in enumerate(candidates):
             skills = ", ".join(c.extracted_skills[:5]) if c.extracted_skills else "N/A"
@@ -185,7 +175,6 @@ Scoring Rules:
 
         parsed_output = self._clean_and_parse_json(response_text)
 
-        # 2. Normalize Output (Wrap List in Dict if necessary)
         if isinstance(parsed_output, list):
             ranking_data = {"rankings": parsed_output}
         elif isinstance(parsed_output, dict) and "rankings" in parsed_output:

@@ -9,7 +9,6 @@ from src.core.logger import app_logger
 class RAGEngine:
     def __init__(self):
         app_logger.info(f"Loading Embedding Model: {settings.EMBEDDING_MODEL_ID}")
-        # This model WILL still use the GPU automatically if available
         self.embed_model = SentenceTransformer(settings.EMBEDDING_MODEL_ID, trust_remote_code=True)
         self.dimension = self.embed_model.get_sentence_embedding_dimension()
 
@@ -26,7 +25,6 @@ class RAGEngine:
         chunked_docs = []
         texts_to_embed = []
 
-        # 1. Chunking Strategy
         for doc in documents:
             clean_text = self.clean_ocr_text(doc['text'])
             chunks = self._chunk_text(clean_text)
@@ -41,12 +39,8 @@ class RAGEngine:
         if not texts_to_embed:
             return None, []
 
-        # 2. Embedding 
-        # Sentences are encoded on GPU (if torch sees it), then converted to numpy for FAISS
         embeddings = self.embed_model.encode(texts_to_embed, convert_to_numpy=True, normalize_embeddings=True)
 
-        # 3. FAISS Indexing (CPU Mode)
-        # IndexFlatIP is exact search. It is extremely fast on CPU for < 100k vectors.
         index = faiss.IndexFlatIP(self.dimension)
         index.add(embeddings)
         
@@ -59,10 +53,8 @@ class RAGEngine:
         if index is None or index.ntotal == 0:
             return []
 
-        # Query embedding happens on GPU (via self.embed_model)
         query_vec = self.embed_model.encode([query], convert_to_numpy=True, normalize_embeddings=True)
         
-        # Search happens on CPU (Fast & Stable)
         distances, indices = index.search(query_vec, k)
         
         results = []

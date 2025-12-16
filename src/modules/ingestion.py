@@ -15,14 +15,12 @@ class IngestionService:
         Validates and extracts a Zip file to a unique temporary directory.
         Returns the path to the extracted folder.
         """
-        # 1. Create a unique session ID for this request
         session_id = str(uuid.uuid4())
         session_dir = self.upload_dir / session_id
         session_dir.mkdir(parents=True, exist_ok=True)
 
         zip_path = session_dir / "input.zip"
 
-        # 2. Save uploaded file to disk (streamed)
         try:
             with open(zip_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
@@ -30,16 +28,13 @@ class IngestionService:
             shutil.rmtree(session_dir)
             app_logger.error(f"Failed to save upload: {e}")
             raise HTTPException(status_code=500, detail="File upload failed")
-
-        # 3. Validate Zip Structure (Anti-Zip Bomb)
+        
         try:
             self._validate_zip(zip_path)
         except HTTPException as e:
-            # Clean up if validation fails
             shutil.rmtree(session_dir)
             raise e
 
-        # 4. Extract Files safely
         extract_path = session_dir / "extracted"
         extract_path.mkdir()
         
@@ -69,16 +64,13 @@ class IngestionService:
                 total_files += 1
                 total_size += info.file_size
 
-                # Check 1: File Count Limit
                 if total_files > settings.MAX_FILE_COUNT:
                     raise HTTPException(status_code=400, detail=f"Too many files in zip (Limit: {settings.MAX_FILE_COUNT})")
 
-                # Check 2: Total Size Limit
                 if total_size > settings.MAX_EXTRACTED_SIZE_BYTES:
                      raise HTTPException(status_code=400, detail="Total extracted size exceeds limit")
 
-                # Check 3: Compression Ratio (Zip Bomb)
-                # If compressed size is > 0, check ratio. (Skip for empty files)
+
                 if info.compress_size > 0:
                     ratio = info.file_size / info.compress_size
                     if ratio > 100:  # Threshold: 100x compression
