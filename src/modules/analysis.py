@@ -164,13 +164,12 @@ Scoring Rules:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=50000,
+                max_new_tokens=5000,
                 do_sample=False,
                 repetition_penalty=1.1
             )
 
         generated = outputs[0][inputs.input_ids.shape[1]:]
-        import pdb; pdb.set_trace()
         response_text = self.tokenizer.decode(generated, skip_special_tokens=True)
 
         parsed_output = self._clean_and_parse_json(response_text)
@@ -236,7 +235,7 @@ Scoring Rules:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=500,
+                max_new_tokens=1000,
                 do_sample=False,
                 repetition_penalty=1.1
             )

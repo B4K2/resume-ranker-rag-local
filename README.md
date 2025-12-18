@@ -2,7 +2,7 @@
 
 A privacy-first, GPU-accelerated microservice that accepts a Zip file of resume images (scans/screenshots), performs OCR, and uses a **Two-Stage RAG + LLM** pipeline to semantically rank candidates against a Job Description.
 
-Built with **FastAPI**, **Qwen-2.5**, **FAISS**, and **OpenCV**.
+Built with **FastAPI**, **Qwen-3.0**, **FAISS**, and **OpenCV**.
 
 ---
 
